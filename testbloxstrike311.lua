@@ -1,7 +1,11 @@
-- BLOX_RECON3 v2 (solo Real): registra ShootWeapon. NO toca movimiento ni nada mas.
+-- BLOX_RECON3 v2 (solo Real): registra ShootWeapon. NO toca movimiento ni nada mas.
 -- Primero REENTRA al juego (para sacar el hook anterior y recuperar movimiento).
 -- Vivo, con arma, disparar y pasar lineas [shootlog].
 local RS = game:GetService("ReplicatedStorage")
+if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
+    print("[shootlog] este script necesita executor CON hooks (Real). Aca no hay hooks.")
+    return
+end
 if _G.__BLOX_OLDNC then
     pcall(function() hookmetamethod(game, "__namecall", _G.__BLOX_OLDNC) end)
     _G.__BLOX_OLDNC = nil
@@ -9,10 +13,7 @@ end
 local inv = RS:WaitForChild("NetworkRemotes", 10):WaitForChild("Inventory", 10)
 local shootRemote = inv and inv:WaitForChild("ShootWeapon", 10)
 local meleeRemote = inv and inv:FindFirstChild("MeleeAttack")
-if not shootRemote then
-    print("[shootlog] no se encontro ShootWeapon")
-    return
-end
+if shootRemote then
 print("[shootlog] enganchado a ShootWeapon, dispara y pasa la salida")
 local function short(v, depth)
     depth = depth or 0
@@ -62,4 +63,6 @@ old = hookmetamethod(game, "__namecall", function(self, ...)
     return old(self, ...)
 end)
 _G.__BLOX_OLDNC = old
-
+else
+    print("[shootlog] no se encontro ShootWeapon")
+end
