@@ -63,9 +63,10 @@ local function noCollide(inst)
     pcall(function()
         if inst:IsA("BasePart") then
             inst.CanCollide = false
+            inst.CanTouch = false
         elseif inst:IsA("Model") then
             for _, d in ipairs(inst:GetDescendants()) do
-                if d:IsA("BasePart") then d.CanCollide = false end
+                if d:IsA("BasePart") then d.CanCollide = false d.CanTouch = false end
             end
         end
     end)
