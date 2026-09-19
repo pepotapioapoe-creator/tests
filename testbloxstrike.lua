@@ -1,59 +1,32 @@
--- BLOX_RECON: como dispara este juego. Vivo, con arma en mano, cerca de otros.
-local Players = game:GetService("Players")
+-- BLOX_RECON2: arbol de remotes del juego + modulos de armas. Vivo, con arma en mano.
 local RS = game:GetService("ReplicatedStorage")
-local lp = Players.LocalPlayer
-print("jugadores:", #Players:GetPlayers())
-local ch = lp.Character
-print("mi character:", ch and ch.Name or "NIL")
-if ch then
-    local hum = ch:FindFirstChildOfClass("Humanoid")
-    print("humanoide:", hum and ("SI vida=" .. math.floor(hum.Health)) or "NO")
-    local parts = {}
-    for _, d in ipairs(ch:GetDescendants()) do
-        if d:IsA("BasePart") then parts[#parts + 1] = d.Name end
-    end
-    print("piezas (" .. #parts .. "):", table.concat(parts, ",", 1, math.min(20, #parts)))
-end
-print("--- tools (arma en mano + mochila) ---")
-local function dumpTools(cont, tag)
-    if not cont then return end
-    for _, t in ipairs(cont:GetChildren()) do
-        if t:IsA("Tool") then
-            print("TOOL [" .. tag .. "]:", t.Name)
-            for _, v in ipairs(t:GetDescendants()) do
-                if v:IsA("ValueBase") then
-                    print("  val:", v.Name, "=", tostring(v.Value))
-                elseif v:IsA("ModuleScript") then
-                    print("  modulo:", v.Name)
-                elseif v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-                    print("  remote:", v.Name, v.ClassName)
-                end
-            end
+local function dumpTree(root, path, depth, maxN, counter)
+    if depth > 4 or counter.n >= maxN then return end
+    local kids = root:GetChildren()
+    table.sort(kids, function(a, b) return a.Name < b.Name end)
+    for _, c in ipairs(kids) do
+        if counter.n >= maxN then return end
+        counter.n = counter.n + 1
+        print(path .. "/" .. c.Name, "|", c.ClassName)
+        if c:IsA("Folder") or c:IsA("Model") then
+            dumpTree(c, path .. "/" .. c.Name, depth + 1, maxN, counter)
         end
     end
 end
-dumpTools(ch, "mano")
-dumpTools(lp:FindFirstChild("Backpack"), "mochila")
-print("--- ReplicatedStorage top ---")
-for _, c in ipairs(RS:GetChildren()) do
-    print("rs:", c.Name, "|", c.ClassName)
-end
-print("--- remotes (todos, 40) ---")
-local n = 0
-for _, d in ipairs(game:GetDescendants()) do
-    if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then
-        n = n + 1
-        if n <= 40 then
-            local path = d.Name
-            local par = d.Parent
-            local ups = 0
-            while par and par ~= game and ups < 4 do
-                path = par.Name .. "/" .. path
-                par = par.Parent
-                ups = ups + 1
-            end
-            print(n .. ".", d.ClassName, path)
-        end
+print("=== NetworkRemotes ===")
+local nr = RS:FindFirstChild("NetworkRemotes")
+if nr then dumpTree(nr, "NetworkRemotes", 0, 120, {n = 0}) else print("NO NetworkRemotes") end
+print("=== Remotes ===")
+local rr = RS:FindFirstChild("Remotes")
+if rr then dumpTree(rr, "Remotes", 0, 120, {n = 0}) else print("NO Remotes") end
+print("=== carpetas codigo (top) ===")
+for _, fname in ipairs({"Controllers", "Classes", "Shared", "Components", "Scripts"}) do
+    local f = RS:FindFirstChild(fname)
+    if f then
+        local names = {}
+        for _, c in ipairs(f:GetChildren()) do names[#names + 1] = c.Name end
+        table.sort(names)
+        print(fname .. ":", table.concat(names, ", ", 1, math.min(30, #names)))
     end
 end
-print("FIN BLOX_RECON")
+print("FIN BLOX_RECON2")
