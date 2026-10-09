@@ -1,56 +1,67 @@
--- SL_RECON2: como disparan las armas. Vivo, con arma en mano. Dispara un poco antes/durante.
-local Players = game:GetService("Players")
+-- SL_RECON3 (solo Real): formato del remote Fire. Vivo, con arma, disparar mirando variado.
 local RS = game:GetService("ReplicatedStorage")
-local lp = Players.LocalPlayer
-print("--- arma equipada ---")
-local ch = lp.Character
-if ch then
-    for _, t in ipairs(ch:GetChildren()) do
-        if t:IsA("Tool") then
-            print("TOOL:", t.Name)
-            for _, v in ipairs(t:GetDescendants()) do
-                if v:IsA("ValueBase") then
-                    print("  val:", v.Name, "=", tostring(v.Value))
-                elseif v:IsA("ModuleScript") then
-                    print("  modulo:", v.Name)
-                elseif v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-                    print("  remote:", v.Name, v.ClassName)
-                end
+if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
+    print("[firelog] necesita Real (hooks)")
+    return
+end
+if _G.__SL_OLDNC then
+    pcall(function() hookmetamethod(game, "__namecall", _G.__SL_OLDNC) end)
+    _G.__SL_OLDNC = nil
+end
+local gf = RS:WaitForChild("Modules", 10):WaitForChild("GunFramework", 10):WaitForChild("Remotes", 10)
+local fireRemote = gf and gf:WaitForChild("Fire", 10)
+if fireRemote then
+print("[firelog] listo: dispara y pasa la salida")
+local cam = workspace.CurrentCamera
+local count = 0
+local function short(v, depth)
+    depth = depth or 0
+    local t = typeof(v)
+    if t == "Vector3" then
+        return string.format("V3(%.1f,%.1f,%.1f)", v.X, v.Y, v.Z)
+    elseif t == "CFrame" then
+        local p = v.Position
+        return string.format("CF(%.1f,%.1f,%.1f)", p.X, p.Y, p.Z)
+    elseif t == "Instance" then
+        return v.ClassName .. ":" .. v.Name
+    elseif t == "number" then
+        return string.format("%.3f", v)
+    elseif t == "string" then
+        return string.format("%q", tostring(v):sub(1, 60))
+    elseif t == "boolean" then
+        return tostring(v)
+    elseif t == "buffer" then
+        return "buffer len=" .. tostring(buffer.len(v))
+    elseif t == "table" then
+        if depth > 0 then return "{...}" end
+        local n, ks = 0, {}
+        for k, vv in pairs(v) do
+            n = n + 1
+            if #ks < 10 then ks[#ks + 1] = tostring(k) .. "=" .. short(vv, depth + 1) end
+        end
+        return "{" .. n .. ": " .. table.concat(ks, ",") .. "}"
+    else
+        return t
+    end
+end
+local old
+old = hookmetamethod(game, "__namecall", function(self, ...)
+    if self == fireRemote and getnamecallmethod() == "FireServer" then
+        count = count + 1
+        if count <= 10 then
+            local args = {...}
+            local parts = {}
+            for i, a in ipairs(args) do
+                parts[#parts + 1] = "[" .. i .. "]" .. short(a)
             end
+            local cf = cam and cam.CFrame
+            local look = cf and string.format("look(%.2f,%.2f,%.2f)", cf.LookVector.X, cf.LookVector.Y, cf.LookVector.Z) or "?"
+            print(string.format("[firelog %d] nargs=%d :: %s | %s", count, #args, table.concat(parts, " "), look))
         end
     end
+    return old(self, ...)
+end)
+_G.__SL_OLDNC = old
+else
+    print("[firelog] no se encontro Fire")
 end
-print("--- mochila ---")
-local bp = lp:FindFirstChild("Backpack")
-if bp then
-    for _, t in ipairs(bp:GetChildren()) do
-        if t:IsA("Tool") then print("TOOL mochila:", t.Name) end
-    end
-end
-print("--- remotes de disparo (scan) ---")
-local keys = {"shoot", "fire", "gun", "weapon", "bullet", "damage", "hit", "ray", "projectil", "ammo", "reload", "trigger"}
-local n = 0
-for _, d in ipairs(game:GetDescendants()) do
-    if d:IsA("RemoteEvent") or d:IsA("RemoteFunction") then
-        local nl = d.Name:lower()
-        for _, k in ipairs(keys) do
-            if nl:find(k, 1, true) then
-                n = n + 1
-                if n <= 30 then
-                    local path = d.Name
-                    local par = d.Parent
-                    local ups = 0
-                    while par and par ~= game and ups < 4 do
-                        path = par.Name .. "/" .. path
-                        par = par.Parent
-                        ups = ups + 1
-                    end
-                    print(n .. ".", d.ClassName, path)
-                end
-                break
-            end
-        end
-    end
-end
-print("matches:", n)
-print("FIN SL_RECON2")
