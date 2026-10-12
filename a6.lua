@@ -1,5 +1,0 @@
-print("moverel:", type(mousemoverel) == "function")
-local ok, vim = pcall(function() return game:GetService("VirtualInputManager") end)
-print("VIM:", ok)
-local ok2 = pcall(function() vim:SendMouseMoveEvent(100, 100, game, 0) end)
-print("VIM move:", ok2)
