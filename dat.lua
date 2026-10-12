@@ -29,6 +29,7 @@ local settings = {
     stickyTarget = true,
     espEnabled = false, espNames = true, espDistance = true, espHealthBar = true,
     espBox = true, espTracer = true, skeleton = true,
+    espTool = false, espPaint = false,
     tracerOrigin = "Bottom", maxDistance = 1500,
     magicEnabled = false, magicPrediction = 0.12,
     silentEnabled = false, silentFov = 200, silentHitChance = 100,
@@ -403,6 +404,8 @@ createToggle(c2, "Vida", function(v) settings.espHealthBar = v end, nil, true)
 createToggle(c2, "Caja", function(v) settings.espBox = v end, nil, true)
 createToggle(c2, "Líneas", function(v) settings.espTracer = v end, nil, true)
 createToggle(c2, "Esqueleto", function(v) settings.skeleton = v end, nil, true)
+createToggle(c2, "Arma equipada", function(v) settings.espTool = v end)
+createToggle(c2, "Pintar cuerpo", function(v) settings.espPaint = v end)
 createDropdown(c2, "Origen", {"Bottom", "Center"}, "Bottom", function(v) settings.tracerOrigin = v end)
 createSlider(c2, "Lejos", settings.maxDistance, 100, 5000, function(v) settings.maxDistance = v end)
 
@@ -489,7 +492,7 @@ end
 local function clearESP(key)
     local o = espData[key]
     if o then
-        safeDestroy(o.bb) safeDestroy(o.line) safeDestroy(o.box)
+        safeDestroy(o.bb) safeDestroy(o.line) safeDestroy(o.box) safeDestroy(o.hl)
         if o.sk then for _, f in ipairs(o.sk) do safeDestroy(f) end end
         if o.skj then for _, f in ipairs(o.skj) do safeDestroy(f) end end
         espData[key] = nil
@@ -545,6 +548,13 @@ local function buildESP(key, char)
     clearESP(key)
     local objs = {}
     objs.sk = {} objs.skj = {}
+    -- pintura del cuerpo (Highlight sutil, anti-fugas con atributo)
+    local hl = Instance.new("Highlight")
+    hl.FillTransparency = 0.75 hl.OutlineTransparency = 0
+    hl.FillColor = ACCENT hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl:SetAttribute("SL1", true)
+    hl.Adornee = char hl.Parent = char objs.hl = hl
     local bb = Instance.new("BillboardGui")
     bb.Size = UDim2.new(0, 170, 0, 40) bb.StudsOffset = Vector3.new(0, 2.8, 0) bb.AlwaysOnTop = true
     bb:SetAttribute("SL1", true)
@@ -583,14 +593,28 @@ local function updateESP(plr)
     local alive = hum ~= nil and hum.Health > 0
     if dist < 4 or dist > settings.maxDistance or not alive then
         objs.bb.Enabled = false objs.line.Visible = false objs.box.Visible = false
+        if objs.hl then objs.hl.Enabled = false end
         hideSk(objs)
         return
     end
     local col = ACCENT
     objs.bb.Enabled = true
+    -- pintura del cuerpo
+    if objs.hl then
+        objs.hl.Enabled = settings.espPaint
+        if settings.espPaint then
+            objs.hl.FillColor = col
+            objs.hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        end
+    end
+    -- arma equipada
+    local tool = char:FindFirstChildOfClass("Tool")
     local txt = ""
     if settings.espNames then txt = plr.DisplayName .. " " end
     if settings.espDistance then txt = txt .. "[" .. dist .. "m]" end
+    if settings.espTool then
+        txt = txt .. (tool and (" | " .. tool.Name) or "")
+    end
     objs.name.Text = txt ~= "" and txt or plr.Name
     objs.name.Visible = (settings.espNames or settings.espDistance)
     objs.name.TextColor3 = col
@@ -814,7 +838,9 @@ SCONN(RunService.RenderStepped:Connect(function(dt)
                         if son then
                             local sd = (Vector2.new(ssp.X, ssp.Y) - ml).Magnitude
                             local sdist = (lr2.Position - stickyPart.Position).Magnitude
-                            if sd <= settings.fovRadius * 1.25 and sdist <= settings.aimMaxDistance then
+                            -- sticky fuerte: solo suelta si el blanco salio de pantalla,
+                            -- murio, o se paso MUY lejos del alcance
+                            if sdist <= (settings.aimMaxDistance or 500) * 2 then
                                 bestPart = stickyPart
                                 bestD = sd
                                 bestName = stickyName
@@ -829,9 +855,10 @@ SCONN(RunService.RenderStepped:Connect(function(dt)
                     end
                 end
                 if bestPart then
+                    local isSticky = (stickyPart == bestPart)
                     stickyPart, stickyModel, stickyName = bestPart, bestModel, bestName
                     lastAimPart = bestPart
-                    aimStatus.Text = "● " .. tostring(bestName)
+                    aimStatus.Text = (isSticky and "🔒 " or "● ") .. tostring(bestName)
                     aimStatus.TextColor3 = Color3.fromRGB(80, 255, 130)
                     if bestD > (settings.aimDeadzone or 0) then
                         local alpha = math.clamp(settings.smoothing / 100, 0.05, 1)
@@ -899,3 +926,4 @@ end))
 
 --// Mostrar
 mainFrame.Visible = true
+
