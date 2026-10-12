@@ -613,7 +613,7 @@ local function updateESP(plr)
     if settings.espNames then txt = plr.DisplayName .. " " end
     if settings.espDistance then txt = txt .. "[" .. dist .. "m]" end
     if settings.espTool then
-        txt = txt .. (tool and (" | " .. tool.Name) or "")
+        txt = txt .. (tool and (" | 🔫 " .. tool.Name) or "")
     end
     objs.name.Text = txt ~= "" and txt or plr.Name
     objs.name.Visible = (settings.espNames or settings.espDistance)
@@ -926,4 +926,3 @@ end))
 
 --// Mostrar
 mainFrame.Visible = true
-
